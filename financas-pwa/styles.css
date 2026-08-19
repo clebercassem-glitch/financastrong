@@ -131,7 +131,7 @@ h1 {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 8px;
-  margin: 0 0 16px;
+  margin: 0 0 22px;
 }
 
 .tab-button {
@@ -198,6 +198,10 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.history-head {
+  justify-content: flex-start;
 }
 
 label,
@@ -294,6 +298,7 @@ textarea {
   color: #064ca5;
   padding: 0 14px;
   font-size: 20px;
+  margin-left: auto;
 }
 
 .add-button {
@@ -323,16 +328,19 @@ textarea {
 }
 
 .small-action {
-  min-height: 64px;
+  min-height: 46px;
   background: #0057b8;
   color: #ffffff;
-  padding: 0 18px;
-  font-size: 20px;
+  padding: 0 12px;
+  font-size: 15px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 87, 184, 0.18);
+  white-space: nowrap;
 }
 
 h2 {
   margin: 0;
-  font-size: 28px;
+  font-size: 25px;
 }
 
 .hint,
@@ -353,16 +361,16 @@ h2 {
 
 .entry-list {
   display: grid;
-  gap: 12px;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .entry-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 74px;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 16px;
+  padding: 14px;
   border-radius: 16px;
   background: #ffffff;
   text-align: left;
@@ -379,8 +387,8 @@ h2 {
 .entry-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  font-size: 30px;
+  gap: 10px;
+  font-size: 24px;
   font-weight: 900;
 }
 
@@ -395,7 +403,7 @@ h2 {
 .entry-meta {
   margin-top: 6px;
   color: #5b6f8a;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 900;
 }
 
@@ -405,7 +413,7 @@ h2 {
   justify-content: center;
   border-radius: 14px;
   background: #eef7ff;
-  font-size: 36px;
+  font-size: 31px;
 }
 
 .edit-panel {
@@ -426,27 +434,29 @@ h2 {
 .chart-summary {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
   margin: 14px 0;
 }
 
 .chart-metric {
   border: 2px solid #d9e5f2;
   border-radius: 14px;
-  padding: 10px;
+  padding: 9px;
   background: #ffffff;
+  min-width: 0;
 }
 
 .chart-metric-label {
   color: #5b6f8a;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 900;
 }
 
 .chart-metric-value {
   color: #064ca5;
-  font-size: 24px;
+  font-size: 21px;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .chart-metric.income .chart-metric-value {
@@ -604,6 +614,24 @@ h2 {
     font-size: 28px;
   }
 
+  .tabs {
+    margin-bottom: 24px;
+  }
+
+  .box:first-child {
+    margin-top: 4px;
+  }
+
+  .box-head {
+    gap: 10px;
+  }
+
+  .import-button {
+    min-height: 48px;
+    padding: 0 10px;
+    font-size: 15px;
+  }
+
   .tab-button {
     min-height: 68px;
     font-size: 14px;
@@ -633,16 +661,53 @@ h2 {
   }
 
   .history-head {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .small-action {
+    min-height: 42px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  h2 {
+    font-size: 22px;
   }
 
   .entry-main {
+    font-size: 22px;
+  }
+
+  .entry-meta {
+    font-size: 15px;
+  }
+
+  .entry-card {
+    grid-template-columns: minmax(0, 1fr) 58px;
+    padding: 12px;
+  }
+
+  .entry-edit-icon {
     font-size: 27px;
   }
 
   .chart-summary {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .chart-metric {
+    padding: 8px 6px;
+  }
+
+  .chart-metric-label {
+    font-size: 12px;
+  }
+
+  .chart-metric-value {
+    font-size: 17px;
   }
 
   .chart-donut {
