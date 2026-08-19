@@ -1,4 +1,4 @@
-const CACHE_NAME = 'controle-financeiro-v2';
+const CACHE_NAME = 'controle-financeiro-v1';
 const BASE_URL = self.registration.scope;
 const APP_SHELL = [
   './',
