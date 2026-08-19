@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbyycDgkb43hOxaK2p2yD0hlmWZk6d4kUMyY8oYcBSsT-GbqQOCQFdJpHsHdxtztsT9_/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzU-yUZeX0-VeipHpW2htlmBdVDYr3rtsRwHvCb7Bck0qJ83Y4vvkkmAt2Dr3JeLsT4/exec';
 const PWA_API_TOKEN = '';
 
 const state = {
