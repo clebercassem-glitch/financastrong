@@ -13,6 +13,16 @@ body {
 
 body {
   font-size: 24px;
+  overflow-x: hidden;
+}
+
+:root {
+  --app-zoom: 1;
+}
+
+.viewport-scale {
+  width: 100%;
+  transform-origin: top left;
 }
 
 main {
@@ -554,6 +564,16 @@ h2 {
 }
 
 @media (max-width: 560px) {
+  :root {
+    --app-zoom: 0.82;
+  }
+
+  .viewport-scale {
+    width: calc(100% / var(--app-zoom));
+    min-height: calc(100dvh / var(--app-zoom));
+    transform: scale(var(--app-zoom));
+  }
+
   main {
     padding: 0 12px 12px;
   }
@@ -648,5 +668,11 @@ h2 {
   .chart-donut {
     width: min(100%, 250px);
     margin: 0 auto;
+  }
+}
+
+@media (max-width: 390px) {
+  :root {
+    --app-zoom: 0.76;
   }
 }
