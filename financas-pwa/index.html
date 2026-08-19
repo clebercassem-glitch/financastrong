@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0057b8">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Controle Financeiro">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>Controle Financeiro</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main>
+      <header class="app-header">
+        <h1><img class="app-logo" src="icon-192.png" alt=""> Controle Financeiro</h1>
+      </header>
+
+      <div class="top-actions">
+        <section class="balance-card" aria-live="polite">
+          <div id="balanceLabel" class="balance-label">Saldo acumulado do mês</div>
+          <div class="balance-row">
+            <div id="balanceValue" class="balance-value">Carregando...</div>
+            <button id="toggleBalance" class="eye-button" type="button" aria-label="Ocultar saldo">👁️</button>
+          </div>
+        </section>
+
+        <a class="sheet-link" href="https://docs.google.com/spreadsheets/d/12tY7ALJ6XUMPwbdGzIV5tnC_Co-2CFZYGuXg5JyNK2g/edit?usp=sharing" target="_blank" rel="noopener">
+          <span class="sheet-emoji" aria-hidden="true">📊</span>
+          <span>Abrir<br>Sheets</span>
+        </a>
+      </div>
+
+      <nav class="tabs" aria-label="Navegação">
+        <button class="tab-button launch active" type="button" data-view="launch">➕<span>Lançar</span></button>
+        <button class="tab-button income" type="button" data-view="receitas">🟢<span>Receita</span></button>
+        <button class="tab-button expense" type="button" data-view="despesas">🔴<span>Despesa</span></button>
+        <button class="tab-button chart" type="button" data-view="grafico">📈<span>Gráfico</span></button>
+      </nav>
+
+      <section id="launchView" class="tab-view active">
+        <form id="form">
+          <section class="box">
+            <div class="box-head">
+              <div class="box-label">Tipo</div>
+              <button id="openReceiptImport" class="import-button" type="button">📝 Importar Texto</button>
+            </div>
+            <div class="kind-row">
+              <button class="kind active" type="button" data-kind="despesa"><span class="dot red"></span> DESPESA</button>
+              <button class="kind" type="button" data-kind="receita"><span class="dot green"></span> RECEITA</button>
+            </div>
+          </section>
+
+          <section class="box">
+            <label for="amount">Valor</label>
+            <input id="amount" inputmode="decimal" autocomplete="off" placeholder="0,00">
+          </section>
+
+          <section class="box">
+            <label for="category">Categoria</label>
+            <div class="category-row">
+              <select id="category"></select>
+              <button id="openCategoryModal" class="add-button" type="button" aria-label="Adicionar categoria">+</button>
+            </div>
+            <div id="customCategoryNote" class="hint"></div>
+          </section>
+
+          <section class="box">
+            <label for="description">Descrição</label>
+            <input id="description" autocomplete="off" placeholder="Ex.: Gasolina">
+          </section>
+
+          <section class="box">
+            <label for="date">Data</label>
+            <input id="date" type="date">
+          </section>
+
+          <section id="fuelFields" class="box fuel-fields">
+            <label>Combustível</label>
+            <div class="two-fields">
+              <input id="fuelLiters" inputmode="decimal" autocomplete="off" placeholder="Litros">
+              <input id="fuelUnitPrice" inputmode="decimal" autocomplete="off" placeholder="R$/litro">
+            </div>
+          </section>
+
+          <button id="submit" class="submit" type="submit">LANÇAR</button>
+        </form>
+      </section>
+
+      <section id="despesasView" class="tab-view">
+        <section id="despesasEditor" class="box edit-panel"></section>
+        <section class="box">
+          <div class="history-head">
+            <h2>Últimas despesas</h2>
+            <button id="refreshDespesas" class="small-action" type="button">🔄 Atualizar</button>
+          </div>
+          <div id="despesasList" class="entry-list"></div>
+        </section>
+      </section>
+
+      <section id="receitasView" class="tab-view">
+        <section id="receitasEditor" class="box edit-panel"></section>
+        <section class="box">
+          <div class="history-head">
+            <h2>Últimas receitas</h2>
+            <button id="refreshReceitas" class="small-action" type="button">🔄 Atualizar</button>
+          </div>
+          <div id="receitasList" class="entry-list"></div>
+        </section>
+      </section>
+
+      <section id="graficoView" class="tab-view">
+        <section class="box">
+          <div class="history-head">
+            <h2>Gráfico do mês</h2>
+            <button id="refreshGraph" class="small-action" type="button">🔄 Atualizar</button>
+          </div>
+          <div id="graphContent" class="entry-list">
+            <div class="empty">Abra a guia para carregar o gráfico.</div>
+          </div>
+        </section>
+      </section>
+
+      <div id="categoryModal" class="modal-backdrop" hidden>
+        <section class="confirm-dialog">
+          <div class="confirm-title">➕ Nova categoria</div>
+          <p class="confirm-text">Digite a categoria que deseja usar neste lançamento.</p>
+          <input id="newCategory" autocomplete="off" placeholder="Ex.: Farmácia">
+          <div class="confirm-actions">
+            <button id="cancelCategory" class="submit secondary" type="button">Cancelar</button>
+            <button id="useCategory" class="submit" type="button">Usar</button>
+          </div>
+        </section>
+      </div>
+
+      <div id="receiptModal" class="modal-backdrop" hidden>
+        <section class="confirm-dialog">
+          <div class="confirm-title">📝 Importar texto</div>
+          <p class="confirm-text">Cole o texto do comprovante. Se for abastecimento, tento preencher valor, litros e R$/litro.</p>
+          <textarea id="receiptText" autocomplete="off" placeholder="Cole aqui o texto"></textarea>
+          <div class="confirm-actions">
+            <button id="cancelReceipt" class="submit secondary" type="button">Cancelar</button>
+            <button id="useReceipt" class="submit" type="button">Importar</button>
+          </div>
+        </section>
+      </div>
+
+      <div id="deleteModal" class="modal-backdrop" hidden>
+        <section class="confirm-dialog">
+          <div class="confirm-title">🗑️ Excluir lançamento?</div>
+          <p class="confirm-text">Essa ação apaga este lançamento da planilha.</p>
+          <div class="confirm-actions">
+            <button id="cancelDelete" class="submit secondary" type="button">Cancelar</button>
+            <button id="confirmDelete" class="submit danger" type="button">Excluir</button>
+          </div>
+        </section>
+      </div>
+
+      <div id="pinModal" class="modal-backdrop" hidden>
+        <section class="confirm-dialog">
+          <div class="confirm-title">🔐 PIN do app</div>
+          <p class="confirm-text">Digite o PIN configurado no Apps Script para liberar sua planilha neste celular.</p>
+          <input id="apiPin" inputmode="numeric" autocomplete="off" placeholder="PIN">
+          <div class="confirm-actions">
+            <button id="skipPin" class="submit secondary" type="button">Agora não</button>
+            <button id="savePin" class="submit" type="button">Entrar</button>
+          </div>
+        </section>
+      </div>
+
+      <div id="statusModal" class="modal-backdrop" hidden>
+        <section id="statusDialog" class="confirm-dialog status-dialog">
+          <div id="statusIcon" class="status-icon">💬</div>
+          <div id="statusTitle" class="confirm-title">Aviso</div>
+          <p id="statusText" class="confirm-text"></p>
+          <div class="confirm-actions">
+            <button id="statusClose" class="submit" type="button">OK</button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
