@@ -1,6 +1,7 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbzU-yUZeX0-VeipHpW2htlmBdVDYr3rtsRwHvCb7Bck0qJ83Y4vvkkmAt2Dr3JeLsT4/exec';
 const PWA_API_TOKEN = '';
 const CACHE_PREFIX = 'financaStrong:v1:';
+const DEFAULT_API_PIN = '1234';
 
 const state = {
   kind: 'despesa',
@@ -88,8 +89,23 @@ function bindEvents() {
   });
 }
 
-async function api(action, payload = {}) {
+async function api(action, payload = {}, retryDefaultPin = true) {
   const pin = await getApiPin();
+  const data = await jsonpRequest(action, payload, pin);
+
+  if (isUnauthorized(data) && retryDefaultPin && pin !== DEFAULT_API_PIN) {
+    forgetApiPin();
+    return jsonpRequest(action, payload, DEFAULT_API_PIN);
+  }
+
+  if (isUnauthorized(data)) {
+    forgetApiPin();
+  }
+
+  return data;
+}
+
+function jsonpRequest(action, payload, pin) {
   return new Promise((resolve, reject) => {
     const callback = '__finApi_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const script = document.createElement('script');
@@ -135,22 +151,12 @@ async function api(action, payload = {}) {
   });
 }
 
+function isUnauthorized(data) {
+  return data && data.ok === false && /não autorizado|nao autorizado/i.test(data.message || '');
+}
+
 function getApiPin() {
-  const pin = localStorage.getItem('financeApiPin') || '';
-  if (pin) {
-    return Promise.resolve(pin);
-  }
-
-  if (state.pinPromise) {
-    return state.pinPromise;
-  }
-
-  state.pinPromise = new Promise(resolve => {
-    state.pinResolver = resolve;
-    el.apiPin.value = '';
-    openModal(el.pinModal, el.apiPin);
-  });
-  return state.pinPromise;
+  return Promise.resolve(localStorage.getItem('financeApiPin') || DEFAULT_API_PIN);
 }
 
 function saveApiPinFromModal() {
@@ -279,14 +285,14 @@ function setView(view) {
 
 function refreshBalance() {
   api('balance').then(data => {
-    const next = data.ok ? data : { display: 'Erro', month: '' };
-    if (data.ok) {
-      state.balanceData = data;
-      writeCache('balance', data);
+    if (!data.ok) {
+      throw new Error(data.message || 'Não consegui atualizar o saldo.');
     }
-    renderBalance(next);
+    state.balanceData = data;
+    writeCache('balance', data);
+    renderBalance(data);
   }).catch(() => {
-    renderBalance(state.balanceData || { display: 'Erro', month: '' });
+    renderBalance(state.balanceData || { display: 'Atualizando...', month: '' });
   });
 }
 
