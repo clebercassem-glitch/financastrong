@@ -1,12 +1,17 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbzU-yUZeX0-VeipHpW2htlmBdVDYr3rtsRwHvCb7Bck0qJ83Y4vvkkmAt2Dr3JeLsT4/exec';
 const PWA_API_TOKEN = '';
+const CACHE_PREFIX = 'financaStrong:v1:';
 
 const state = {
   kind: 'despesa',
   view: 'launch',
   balanceVisible: localStorage.getItem('balanceVisible') !== 'false',
+  balanceData: null,
   categories: { despesa: [], receita: [] },
   history: { despesa: [], receita: [] },
+  historyCacheInfo: { despesa: null, receita: null },
+  graphData: null,
+  graphCacheInfo: null,
   selected: null,
   pinResolver: null,
   pinPromise: null
@@ -21,8 +26,9 @@ function start() {
   bindEvents();
   setToday();
   fillFallbackCategories();
+  hydrateFromCache();
   fillCategorySelect();
-  renderBalance({ display: 'Carregando...', month: '' });
+  renderBalance(state.balanceData || { display: 'Carregando...', month: '' });
   updateFuelFields();
   refreshStartupData();
 
@@ -177,11 +183,38 @@ function refreshStartupData() {
   api('categories').then(data => {
     if (data.ok && data.categories) {
       state.categories = data.categories;
+      writeCache('categories', data.categories);
       fillCategorySelect();
     }
   }).catch(() => {});
 
   refreshBalance();
+}
+
+function hydrateFromCache() {
+  const cachedCategories = readCache('categories');
+  if (cachedCategories && cachedCategories.data) {
+    state.categories = cachedCategories.data;
+  }
+
+  const cachedBalance = readCache('balance');
+  if (cachedBalance && cachedBalance.data) {
+    state.balanceData = cachedBalance.data;
+  }
+
+  ['despesa', 'receita'].forEach(kind => {
+    const cachedHistory = readCache('history:' + kind);
+    if (cachedHistory && cachedHistory.data && Array.isArray(cachedHistory.data.entries)) {
+      state.history[kind] = cachedHistory.data.entries;
+      state.historyCacheInfo[kind] = { cachedAt: cachedHistory.cachedAt };
+    }
+  });
+
+  const cachedGraph = readCache('chart');
+  if (cachedGraph && cachedGraph.data) {
+    state.graphData = cachedGraph.data;
+    state.graphCacheInfo = { cachedAt: cachedGraph.cachedAt };
+  }
 }
 
 function fillFallbackCategories() {
@@ -246,8 +279,15 @@ function setView(view) {
 
 function refreshBalance() {
   api('balance').then(data => {
-    renderBalance(data.ok ? data : { display: 'Erro', month: '' });
-  }).catch(() => renderBalance({ display: 'Erro', month: '' }));
+    const next = data.ok ? data : { display: 'Erro', month: '' };
+    if (data.ok) {
+      state.balanceData = data;
+      writeCache('balance', data);
+    }
+    renderBalance(next);
+  }).catch(() => {
+    renderBalance(state.balanceData || { display: 'Erro', month: '' });
+  });
 }
 
 function renderBalance(data) {
@@ -260,7 +300,7 @@ function renderBalance(data) {
 function toggleBalance() {
   state.balanceVisible = !state.balanceVisible;
   localStorage.setItem('balanceVisible', String(state.balanceVisible));
-  refreshBalance();
+  renderBalance(state.balanceData || { display: 'Carregando...', month: '' });
 }
 
 function submitLaunch(event) {
@@ -287,7 +327,7 @@ function submitLaunch(event) {
       el.fuelLiters.value = '';
       el.fuelUnitPrice.value = '';
       el.customCategoryNote.textContent = '';
-      refreshBalance();
+      refreshAfterMutation(state.kind);
     }
   }).catch(error => {
     show(error.message || String(error), false);
@@ -358,17 +398,30 @@ function loadHistory(kind) {
   const editor = kind === 'receita' ? el.receitasEditor : el.despesasEditor;
   editor.classList.remove('visible');
   editor.innerHTML = '';
-  list.innerHTML = '<div class="empty">Carregando...</div>';
+  if (state.history[kind] && state.history[kind].length) {
+    renderHistory(kind, { cached: true, loading: true });
+  } else {
+    list.innerHTML = '<div class="empty">Carregando...</div>';
+  }
 
   api('recent', { kind, limit: 30 }).then(response => {
+    if (!response.ok) {
+      throw new Error(response.message || 'Não consegui atualizar pela planilha.');
+    }
     state.history[kind] = response.entries || [];
+    state.historyCacheInfo[kind] = null;
+    writeCache('history:' + kind, { entries: state.history[kind] });
     renderHistory(kind);
   }).catch(error => {
-    list.innerHTML = '<div class="empty">' + escapeHtml(error.message || String(error)) + '</div>';
+    if (state.history[kind] && state.history[kind].length) {
+      renderHistory(kind, { cached: true, error: true });
+    } else {
+      list.innerHTML = '<div class="empty">' + escapeHtml(error.message || String(error)) + '</div>';
+    }
   });
 }
 
-function renderHistory(kind) {
+function renderHistory(kind, options = {}) {
   const list = kind === 'receita' ? el.receitasList : el.despesasList;
   const entries = state.history[kind] || [];
 
@@ -377,7 +430,12 @@ function renderHistory(kind) {
     return;
   }
 
-  list.innerHTML = entries.map((entry, index) => `
+  const cacheInfo = state.historyCacheInfo[kind] || {};
+  const cacheNote = options.cached
+    ? `<div class="cache-note">${options.loading ? 'Salvo no celular · atualizando...' : 'Salvo no celular' + (cacheInfo.cachedAt ? ' · ' + formatCacheTime(cacheInfo.cachedAt) : '')}${options.error ? ' · sem conexão com a planilha agora' : ''}</div>`
+    : '';
+
+  list.innerHTML = cacheNote + entries.map((entry, index) => `
     <button class="entry-card ${kind === 'receita' ? 'income' : 'expense'}" type="button" data-kind="${kind}" data-index="${index}">
       <div>
         <div class="entry-main">
@@ -448,8 +506,7 @@ function saveSelectedEntry() {
     show(cleanMessage(response.message, response.ok ? 'Tudo certo.' : 'Não salvei.'), Boolean(response.ok));
     if (response.ok) {
       closeEditors();
-      loadHistory(entry.kind);
-      refreshBalance();
+      refreshAfterMutation(entry.kind);
     }
   }).catch(error => show(error.message || String(error), false));
 }
@@ -463,8 +520,7 @@ function deleteSelectedEntry() {
     show(cleanMessage(response.message, response.ok ? 'Lançamento removido.' : 'Não removi.'), Boolean(response.ok));
     if (response.ok) {
       closeEditors();
-      loadHistory(entry.kind);
-      refreshBalance();
+      refreshAfterMutation(entry.kind);
     }
   }).catch(error => show(error.message || String(error), false));
 }
@@ -478,20 +534,43 @@ function closeEditors() {
 }
 
 function loadGraph() {
-  el.graphContent.innerHTML = '<div class="empty">Carregando gráfico...</div>';
-  api('chart').then(data => renderGraph(data)).catch(error => {
-    el.graphContent.innerHTML = '<div class="empty">' + escapeHtml(error.message || String(error)) + '</div>';
+  if (state.graphData) {
+    renderGraph(state.graphData, { cached: true, loading: true });
+  } else {
+    el.graphContent.innerHTML = '<div class="empty">Carregando gráfico...</div>';
+  }
+
+  api('chart').then(data => {
+    if (!data.ok) {
+      throw new Error(data.message || 'Não consegui atualizar o gráfico pela planilha.');
+    }
+    state.graphData = data;
+    state.graphCacheInfo = null;
+    writeCache('chart', data);
+    renderGraph(data);
+  }).catch(error => {
+    if (state.graphData) {
+      renderGraph(state.graphData, { cached: true, error: true });
+    } else {
+      el.graphContent.innerHTML = '<div class="empty">' + escapeHtml(error.message || String(error)) + '</div>';
+    }
   });
 }
 
-function renderGraph(data) {
+function renderGraph(data, options = {}) {
   const expenses = data.expenseCategories || [];
   if (!data.ok) {
     el.graphContent.innerHTML = '<div class="empty">Não consegui carregar o gráfico.</div>';
     return;
   }
 
+  const cacheInfo = state.graphCacheInfo || {};
+  const cacheNote = options.cached
+    ? `<div class="cache-note">${options.loading ? 'Salvo no celular · atualizando...' : 'Salvo no celular' + (cacheInfo.cachedAt ? ' · ' + formatCacheTime(cacheInfo.cachedAt) : '')}${options.error ? ' · sem conexão com a planilha agora' : ''}</div>`
+    : '';
+
   el.graphContent.innerHTML = `
+    ${cacheNote}
     <div class="entry-meta">Resumo de ${escapeHtml(data.month || '')}/${escapeHtml(String(data.year || ''))}</div>
     <div class="chart-summary">
       <div class="chart-metric income"><div class="chart-metric-label">Receitas</div><div class="chart-metric-value">${escapeHtml(data.incomeDisplay || 'R$ 0,00')}</div></div>
@@ -527,6 +606,75 @@ function renderChartRow(item) {
       <span>${escapeHtml(item.display || 'R$ 0,00')}</span>
     </div>
   `;
+}
+
+function refreshAfterMutation(kind) {
+  refreshBalance();
+
+  if (state.view === 'despesas' && kind === 'despesa') {
+    loadHistory('despesa');
+  } else if (state.view === 'receitas' && kind === 'receita') {
+    loadHistory('receita');
+  } else {
+    prefetchHistory(kind);
+  }
+
+  if (state.view === 'grafico') {
+    loadGraph();
+  } else {
+    prefetchGraph();
+  }
+}
+
+function prefetchHistory(kind) {
+  api('recent', { kind, limit: 30 }).then(response => {
+    if (response.ok) {
+      state.history[kind] = response.entries || [];
+      state.historyCacheInfo[kind] = null;
+      writeCache('history:' + kind, { entries: state.history[kind] });
+    }
+  }).catch(() => {});
+}
+
+function prefetchGraph() {
+  api('chart').then(data => {
+    if (data.ok) {
+      state.graphData = data;
+      state.graphCacheInfo = null;
+      writeCache('chart', data);
+    }
+  }).catch(() => {});
+}
+
+function readCache(name) {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + name);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeCache(name, data) {
+  try {
+    localStorage.setItem(CACHE_PREFIX + name, JSON.stringify({
+      cachedAt: new Date().toISOString(),
+      data
+    }));
+  } catch (error) {
+    // Cache local é melhoria de velocidade; se o navegador negar, o app segue online.
+  }
+}
+
+function formatCacheTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return 'atualizado às ' + date.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 function openModal(modal, focusTarget) {
